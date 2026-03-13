@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tracker de tareas</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #ffffff; --bg2: #f5f5f3; --bg3: #eeede9;
+  --text: #1a1a18; --text2: #6b6b67; --text3: #a0a09c;
+  --border: rgba(0,0,0,0.12); --border2: rgba(0,0,0,0.2);
+  --radius: 8px; --radius-lg: 12px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1c1c1a; --bg2: #252523; --bg3: #2e2e2b;
+    --text: #e8e8e4; --text2: #9a9a96; --text3: #5a5a56;
+    --border: rgba(255,255,255,0.1); --border2: rgba(255,255,255,0.18);
+  }
+}
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg3); color: var(--text); min-height: 100vh; }
+.app { max-width: 1400px; margin: 0 auto; padding: 1.5rem 1rem; }
+.header { display: flex; align-items: center; gap: 12px; margin-bottom: 1.25rem; flex-wrap: wrap; }
+h1 { font-size: 18px; font-weight: 500; }
+.sync-badge { font-size: 11px; padding: 3px 9px; border-radius: 99px; border: 0.5px solid var(--border); color: var(--text3); }
+.sync-badge.ok { color: #3B6D11; border-color: #b0d48a; background: #EAF3DE; }
+.sync-badge.err { color: #A32D2D; border-color: #f09595; background: #FCEBEB; }
+.sync-badge.loading { color: var(--text2); }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 1rem; }
+.stat { background: var(--bg); border-radius: var(--radius); padding: 10px 12px; border: 0.5px solid var(--border); }
+.stat-label { font-size: 11px; color: var(--text2); margin-bottom: 3px; }
+.stat-value { font-size: 20px; font-weight: 500; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 1rem; align-items: center; }
+.toolbar input[type="text"], .toolbar select { font-size: 12px; padding: 5px 8px; border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--bg); color: var(--text); height: 30px; }
+.toolbar input[type="text"] { flex: 1; min-width: 140px; }
+.btn { font-size: 12px; padding: 5px 10px; border: 0.5px solid var(--border2); border-radius: var(--radius); background: transparent; color: var(--text); cursor: pointer; height: 30px; white-space: nowrap; }
+.btn:hover { background: var(--bg2); }
+.btn-primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+.btn-primary:hover { opacity: 0.85; }
+.tbl-wrap { overflow-x: auto; width: 100%; border-radius: var(--radius-lg); border: 0.5px solid var(--border); background: var(--bg); }
+table { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; min-width: 860px; }
+th { text-align: left; font-weight: 500; font-size: 10px; color: var(--text2); padding: 8px; border-bottom: 0.5px solid var(--border); white-space: nowrap; letter-spacing: 0.06em; text-transform: uppercase; background: var(--bg2); }
+td { padding: 6px 8px; border-bottom: 0.5px solid var(--border); color: var(--text); vertical-align: middle; }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover td { background: var(--bg2); }
+.section-header td { background: var(--bg2); font-weight: 500; font-size: 10px; color: var(--text2); padding: 5px 8px; letter-spacing: 0.08em; text-transform: uppercase; border-bottom: 0.5px solid var(--border); }
+select.inline { font-size: 11px; border: none; background: transparent; color: var(--text2); cursor: pointer; padding: 1px 2px; max-width: 100%; }
+select.inline:focus { outline: none; }
+.del-btn { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 14px; padding: 0 2px; line-height: 1; }
+.del-btn:hover { color: #E24B4A; }
+.peek-cell { cursor: pointer; }
+.peek-text { font-size: 11px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; border-bottom: 0.5px dashed var(--border2); padding-bottom: 1px; }
+.peek-text.empty { color: var(--text3); border-bottom-style: dotted; }
+.col-tarea { width: 21%; } .col-area { width: 11%; } .col-pri { width: 7%; }
+.col-estado { width: 9%; } .col-bloque { width: 7%; } .col-lugar { width: 7%; }
+.col-tiempo { width: 6%; } .col-done { width: 12%; } .col-paso { width: 12%; }
+.col-energia { width: 6%; } .col-del { width: 2%; }
+.add-bar { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.add-bar input, .add-bar select { font-size: 12px; padding: 5px 8px; border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--bg); color: var(--text); height: 30px; }
+.empty-row td { text-align: center; padding: 2.5rem; color: var(--text3); font-size: 13px; }
+.modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.25); z-index: 9000; align-items: center; justify-content: center; }
+.modal-backdrop.show { display: flex; }
+.modal { background: var(--bg); border-radius: var(--radius-lg); border: 0.5px solid var(--border2); padding: 20px; width: 340px; max-width: 92vw; position: relative; }
+.modal-label { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text2); margin-bottom: 8px; }
+.modal textarea { width: 100%; font-size: 13px; color: var(--text); background: var(--bg2); border: 0.5px solid var(--border2); border-radius: var(--radius); padding: 8px 10px; resize: vertical; min-height: 80px; font-family: inherit; line-height: 1.5; }
+.modal textarea:focus { outline: none; border-color: var(--text2); }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+.modal-close-x { position: absolute; top: 10px; right: 12px; background: none; border: none; color: var(--text3); cursor: pointer; font-size: 16px; line-height: 1; }
+.modal-close-x:hover { color: var(--text); }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1>Tracker de tareas</h1>
+    <span class="sync-badge loading" id="sync-badge">Conectando...</span>
+  </div>
+  <div class="stats" id="stats"></div>
+  <div class="toolbar">
+    <input type="text" id="search" placeholder="Buscar tarea...">
+    <select id="f-area"><option value="">Todas las áreas</option></select>
+    <select id="f-pri"><option value="">Prioridad</option><option>Alta</option><option>Media</option><option>Baja</option></select>
+    <select id="f-estado"><option value="">Estado</option><option>Pendiente</option><option>En curso</option><option>Bloqueado</option><option>Listo</option></select>
+    <select id="f-bloque"><option value="">Bloque</option><option>Mañana</option><option>Tarde</option><option>Noche</option><option>Semana</option><option>Después</option></select>
+    <select id="f-energia"><option value="">Energía</option><option>Alta</option><option>Media</option><option>Baja</option></select>
+    <button class="btn" onclick="clearDone()">Limpiar listos</button>
+    <button class="btn btn-primary" onclick="exportCSV()">Exportar CSV</button>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="col-tarea">Tarea</th><th class="col-area">Área</th>
+          <th class="col-pri">Prioridad</th><th class="col-estado">Estado</th>
+          <th class="col-bloque">Bloque</th><th class="col-lugar">Lugar</th>
+          <th class="col-tiempo">Tiempo</th><th class="col-done">Done ✎</th>
+          <th class="col-paso">Primer paso ✎</th><th class="col-energia">Energía</th>
+          <th class="col-del"></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+  <div class="add-bar">
+    <input type="text" id="new-tarea" placeholder="Nueva tarea..." style="flex:2;min-width:150px;">
+    <select id="new-area" style="min-width:110px;"><option value="">Área</option></select>
+    <select id="new-pri"><option value="Media">Prioridad</option><option>Alta</option><option>Media</option><option>Baja</option></select>
+    <select id="new-bloque"><option value="">Bloque</option><option>Mañana</option><option>Tarde</option><option>Noche</option><option>Semana</option><option>Después</option></select>
+    <input type="text" id="new-lugar" placeholder="Lugar" style="width:90px;">
+    <input type="text" id="new-tiempo" placeholder="Tiempo" style="width:70px;">
+    <select id="new-energia"><option value="Media">Energía</option><option>Alta</option><option>Media</option><option>Baja</option></select>
+    <button class="btn btn-primary" onclick="addTask()">+ Agregar</button>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modal-backdrop" onclick="handleBackdropClick(event)">
+  <div class="modal">
+    <button class="modal-close-x" onclick="closeModal()">×</button>
+    <div class="modal-label" id="modal-label"></div>
+    <textarea id="modal-ta" rows="4" placeholder="Escribí aquí..."></textarea>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveModal()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://wievjqdcymqnzyipcezv.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_xciIM7yhyCr2TRHh7OBd6w_lYAPU2su';
+const API = SUPABASE_URL + '/rest/v1/tasks';
+const H = {
+  'Content-Type': 'application/json',
+  'apikey': SUPABASE_KEY,
+  'Authorization': 'Bearer ' + SUPABASE_KEY,
+  'Prefer': 'return=representation'
+};
+
+const AREAS = ['IFI — Web','IFI — Lanzamiento','IFI — Ventas','IFI — Contactos','IFI — Proyectos','Carlos','Casa','Plata','Salud','Personal','Vender','Backlog'];
+const PRIORIDADES = ['Alta','Media','Baja'];
+const ESTADOS = ['Pendiente','En curso','Bloqueado','Listo'];
+const BLOQUES = ['Mañana','Tarde','Noche','Semana','Después'];
+const ENERGIAS = ['Alta','Media','Baja'];
+
+const INITIAL = [
+  ['Web text + format','IFI — Web','Alta','Pendiente','Semana','','2h','Texto cerrado y maquetado','Abrir doc y listar secciones','Alta'],
+  ['Correr keywords de nuevo','IFI — Web','Alta','Pendiente','Semana','','1h','Lista de keywords actualizada','Abrir herramienta y correr','Media'],
+  ['Análisis de keywords','IFI — Web','Alta','Pendiente','Semana','','2h','Análisis exportado','Definir términos objetivo','Media'],
+  ['Cerrar textos finales','IFI — Web','Alta','Pendiente','Semana','','3h','Todos los textos aprobados','Listar secciones sin texto','Alta'],
+  ['Sacar "startups" del sitio','IFI — Web','Media','Pendiente','Semana','','30m','Palabra eliminada','Buscar ocurrencias en doc','Baja'],
+  ['Cambiar 9 por 10 centros','IFI — Web','Media','Pendiente','Semana','','15m','Número corregido','Localizar mención en texto','Baja'],
+  ['Chequear nombre Sulliar/Soullier','IFI — Web','Media','Pendiente','Semana','','15m','Nombre corregido','Buscar en doc','Baja'],
+  ['Armar / cerrar About IFI','IFI — Web','Alta','Pendiente','Semana','','2h','Texto aprobado','Abrir borrador actual','Alta'],
+  ['Manual de estilo','IFI — Web','Media','Pendiente','Después','','3h','Doc entregado','Listar elementos a cubrir','Media'],
+  ['Sources de desafíos','IFI — Web','Media','Pendiente','Semana','','1h','Links y fuentes listados','Hacer búsqueda inicial','Media'],
+  ['Links LinkedIn y otras redes','IFI — Web','Baja','Pendiente','Semana','','30m','Lista de links completa','Pedir a cada área','Baja'],
+  ['Conseguir imágenes','IFI — Web','Alta','Pendiente','Semana','','','Set de imágenes entregado','Definir qué imágenes faltan','Media'],
+  ['Pedir logo HIT','IFI — Web','Alta','Pendiente','Mañana','','10m','Logo recibido','Mandar mail a contacto HIT','Baja'],
+  ['Armar estrategia LLM','IFI — Web','Media','Pendiente','Después','','2h','Doc de estrategia cerrado','Investigar cómo otros lo hacen','Alta'],
+  ['Ver cómo indexa el ejemplo','IFI — Web','Media','Pendiente','Semana','','1h','Revisión documentada','Abrir ejemplo y revisar fuente','Media'],
+  ['Armar plan de lanzamiento IFI','IFI — Lanzamiento','Alta','Pendiente','Semana','','3h','Plan con fechas y responsables','Listar componentes del lanzamiento','Alta'],
+  ['Heads-up lanzamiento mayo','IFI — Lanzamiento','Alta','Pendiente','Semana','','1h','Mails enviados','Hacer lista de destinatarios','Media'],
+  ['Proponer fechas','IFI — Lanzamiento','Alta','Pendiente','Mañana','','30m','Fechas propuestas','Abrir calendario','Baja'],
+  ['Buscar lugares','IFI — Lanzamiento','Alta','Pendiente','Semana','','2h','3 opciones con info','Googlear opciones','Media'],
+  ['Cruzar lanzamiento con autoridades','IFI — Lanzamiento','Alta','Pendiente','Semana','','1h','Fecha confirmada','Consultar disponibilidad','Media'],
+  ['Armar comunicación de lanzamiento','IFI — Lanzamiento','Alta','Pendiente','Semana','','2h','Borrador aprobado','Abrir doc nuevo','Alta'],
+  ['Definir paso para invitaciones','IFI — Lanzamiento','Alta','Pendiente','Semana','','30m','Proceso definido','Consultar con Carlos','Media'],
+  ['IG + TW','IFI — Lanzamiento','Media','Pendiente','Semana','','','Calendario de posts armado','Listar contenido disponible','Media'],
+  ['Prensa + SM','IFI — Lanzamiento','Media','Pendiente','Después','','','Lista de medios y ángulo','Hacer lista de contactos','Media'],
+  ['Coordinar fotos','IFI — Lanzamiento','Media','Pendiente','Después','','','Sesión confirmada','Definir qué se fotografía','Media'],
+  ['Definir KPIs de ventas','IFI — Ventas','Alta','Pendiente','Semana','','2h','Doc con 7 métricas cerrado','Abrir doc y listar métricas','Alta'],
+  ['Armar tracker de KPIs','IFI — Ventas','Alta','Pendiente','Semana','','2h','Tracker funcional','Diseñar estructura','Alta'],
+  ['Definir milestones para KPIs','IFI — Ventas','Alta','Pendiente','Semana','','1h','Milestones con fechas','Revisar objetivos del año','Alta'],
+  ['Armar objetivos concretos del año','IFI — Ventas','Alta','Pendiente','Semana','','2h','Doc cerrado','Listar objetivos por área','Alta'],
+  ['Armar pipeline comercial','IFI — Ventas','Alta','Pendiente','Mañana','','3h','Pipeline con etapas y calificación','Abrir CRM o planilla','Alta'],
+  ['Revisar / limpiar pipeline','IFI — Ventas','Alta','Pendiente','Mañana','','1h','Pipeline actualizado','Abrir pipeline actual','Media'],
+  ['Mirar pipeline todos los días','IFI — Ventas','Alta','Pendiente','Mañana','','15m','Revisión hecha','Abrir pipeline','Baja'],
+  ['Cerrar presentación','IFI — Ventas','Alta','Pendiente','Semana','','3h','Presentación enviada','Abrir última versión','Alta'],
+  ['PPT de ventas','IFI — Ventas','Alta','Pendiente','Semana','','3h','PPT listo','Abrir plantilla','Alta'],
+  ['PPT de talleres','IFI — Ventas','Media','Pendiente','Semana','','2h','PPT listo','Abrir plantilla','Media'],
+  ['Demo con Vivi o Ceci','IFI — Ventas','Media','Pendiente','Semana','','1h','Feedback recibido','Coordinar fecha','Media'],
+  ['Conseguir 1 prospect','IFI — Ventas','Alta','Pendiente','Semana','','','Prospect calificado en pipeline','Revisar lista de contactos','Alta'],
+  ['Mails pendientes / deuda','IFI — Contactos','Alta','Pendiente','Mañana','','2h','Inbox a cero','Listar los críticos','Media'],
+  ['Todos los follow-ups','IFI — Contactos','Alta','Pendiente','Mañana','','2h','Todos enviados','Listar contactos pendientes','Media'],
+  ['Follow-up diseño','IFI — Contactos','Media','Pendiente','Mañana','','15m','Mail enviado','Buscar último intercambio','Baja'],
+  ['Follow-up HIT','IFI — Contactos','Alta','Pendiente','Mañana','','15m','Mail enviado','Buscar contacto HIT','Baja'],
+  ['Cerrar acuerdo HIT','IFI — Contactos','Alta','Pendiente','Semana','','','Acuerdo firmado','Revisar borrador','Alta'],
+  ['Reuniones UdeSA','IFI — Contactos','Alta','Pendiente','Semana','','','Reuniones agendadas','Confirmar disponibilidad','Media'],
+  ['Contactar directores centros innovación','IFI — Contactos','Alta','Pendiente','Semana','','','Todos contactados','Hacer lista de directores','Media'],
+  ['Juan Manuel — fechas reuniones','IFI — Contactos','Media','Pendiente','Mañana','','15m','Mail enviado','Abrir calendario','Baja'],
+  ['Ir a rectoría — Uri/Lucas','IFI — Contactos','Alta','Pendiente','Semana','','','Reunión hecha','Confirmar fecha','Media'],
+  ['Victoria — evento HIT','IFI — Contactos','Alta','Pendiente','Semana','','','Fecha confirmada','Mandar mensaje','Baja'],
+  ['Córdoba — pedir reunión','IFI — Contactos','Alta','Pendiente','Mañana','','15m','Mail enviado','Redactar mail','Baja'],
+  ['Call Yani Koghan','IFI — Contactos','Media','Pendiente','Semana','','','Call hecha','Mandar mensaje','Baja'],
+  ['Joel — definir fechas','IFI — Contactos','Media','Pendiente','Semana','','','Fechas confirmadas','Escribir a Joel','Baja'],
+  ['Victor — next week','IFI — Contactos','Media','Pendiente','Semana','','','Reunión agendada','Escribir a Victor','Baja'],
+  ['Sara — next steps','IFI — Contactos','Media','Pendiente','Semana','','','Mail enviado','Escribir a Sara','Baja'],
+  ['Alan — BID','IFI — Contactos','Alta','Pendiente','Semana','','','Contacto hecho','Buscar info de Alan','Media'],
+  ['Andrei / Nvidia — call','IFI — Contactos','Media','Pendiente','Después','','','Call coordinada','Escribir a Andrei','Baja'],
+  ['Guido Grinbaum','IFI — Contactos','Media','Pendiente','Semana','','','Contacto hecho','Escribir mensaje','Baja'],
+  ['Andre Lopez Gibson','IFI — Contactos','Media','Pendiente','Semana','','','Contacto hecho','Escribir mensaje','Baja'],
+  ['Gaby North Valley','IFI — Contactos','Media','Pendiente','Semana','','','Contacto hecho','Escribir mensaje','Baja'],
+  ['Agencia partnership','IFI — Contactos','Media','Pendiente','Semana','','','Conversación iniciada','Escribir mensaje','Media'],
+  ['Urban + MKT follow up','IFI — Contactos','Media','Pendiente','Semana','','','Follow up enviado','Revisar minuta','Baja'],
+  ['Secretarios CABA partnership','IFI — Contactos','Media','Pendiente','Después','','','Contacto iniciado','Identificar contacto','Media'],
+  ['Marval','IFI — Contactos','Media','Pendiente','Después','','','Conversación iniciada','Buscar contacto','Baja'],
+  ['Inés / INE — innovación','IFI — Contactos','Media','Pendiente','Semana','','','Contacto hecho','Escribir mensaje','Baja'],
+  ['YPF','IFI — Contactos','Alta','Pendiente','Semana','','','Conversación iniciada','Identificar contacto','Alta'],
+  ['M. Ferrareli','IFI — Contactos','Media','Pendiente','Semana','','','Contacto hecho','Escribir mensaje','Baja'],
+  ['Evento RT / UdeSA','IFI — Contactos','Baja','Pendiente','Semana','','','Confirmado o descartado','Buscar info del evento','Baja'],
+  ['Lista de graduados / LinkedIn','IFI — Contactos','Media','Pendiente','Después','','','Lista iniciada','Buscar en LinkedIn','Media'],
+  ['Juan — drones','IFI — Contactos','Baja','Pendiente','Después','','','Contacto hecho','Escribir a Juan','Baja'],
+  ['Carlos — web / $','IFI — Contactos','Alta','Pendiente','Mañana','','','Temas alineados','Mandar mensaje a Carlos','Media'],
+  ['Mauro — contacto','IFI — Contactos','Baja','Pendiente','Después','','','Contacto hecho','Escribir a Mauro','Baja'],
+  ['TEC / Launch','IFI — Proyectos','Alta','Pendiente','Semana','','','','Revisar estado','Alta'],
+  ['TT / Docs','IFI — Proyectos','Media','Pendiente','Semana','','','','Revisar estado','Media'],
+  ['Nodo20 / Comm','IFI — Proyectos','Media','Pendiente','Semana','','','','Revisar estado','Media'],
+  ['HIT / Podcast','IFI — Proyectos','Media','Pendiente','Semana','','','','Revisar estado','Media'],
+  ['Córdoba','IFI — Proyectos','Alta','Pendiente','Semana','','','','Revisar estado','Alta'],
+  ['Partners','IFI — Proyectos','Alta','Pendiente','Semana','','','','Revisar estado','Alta'],
+  ['BID','IFI — Proyectos','Alta','Pendiente','Semana','','','','Revisar estado','Alta'],
+  ['Armar lista pendientes de Carlos','Carlos','Alta','Pendiente','Mañana','','30m','Lista completa','Escribir todo lo que falta','Media'],
+  ['Pedir slides a Carlos','Carlos','Alta','Pendiente','Mañana','','15m','Mail enviado','Redactar pedido','Baja'],
+  ['Pedir slides de profesores','Carlos','Alta','Pendiente','Mañana','','15m','Mail enviado','Incluir en mismo mail','Baja'],
+  ['Listar lecturas que faltan','Carlos','Alta','Pendiente','Mañana','','30m','Lista enviada a Carlos','Revisar qué tengo','Media'],
+  ['Pedir papers / libros','Carlos','Media','Pendiente','Semana','','15m','Mail enviado','Incluir en pedido','Baja'],
+  ['Pedir clase de entrenamiento','Carlos','Media','Pendiente','Semana','','15m','Mail enviado','Incluir en pedido','Baja'],
+  ['Ver si hay grabaciones','Carlos','Media','Pendiente','Semana','','15m','Confirmado','Preguntar a Carlos','Baja'],
+  ['Lecturas curso mayo','Carlos','Media','Pendiente','Después','','','Lecturas recibidas','Esperar respuesta','Baja'],
+  ['Imprimir calendario','Carlos','Media','Pendiente','Mañana','','15m','Calendario impreso','Mandar a imprimir','Baja'],
+  ['Esquema de estudio diario','Carlos','Alta','Pendiente','Semana','','1h','Esquema escrito','Definir bloques disponibles','Media'],
+  ['Arreglos de la casa','Casa','Alta','Pendiente','Semana','','','Fecha confirmada','Llamar / escribir','Media'],
+  ['Documentar para la dueña','Casa','Media','Pendiente','Semana','','1h','Doc armado','Listar qué documentar','Media'],
+  ['Pedir poder — reunión','Casa','Media','Pendiente','Semana','','','Poder tramitado','Consultar cómo se tramita','Media'],
+  ['Germán — casa','Casa','Alta','Pendiente','Mañana','','','Contacto hecho','Escribir a Germán','Baja'],
+  ['Ordenar / pintar','Casa','Baja','Pendiente','Después','','','','Definir qué primero','Baja'],
+  ['Tirar tarjetas','Casa','Baja','Pendiente','Después','','15m','Tiradas','Juntar tarjetas','Baja'],
+  ['Llevar ventilador','Casa','Baja','Pendiente','Después','','','Llevado','','Baja'],
+  ['Llevar residuos','Casa','Baja','Pendiente','Después','','','Llevados','','Baja'],
+  ['Bolsa de dormir','Casa','Baja','Pendiente','Después','','','Resuelta','','Baja'],
+  ['Mac mini','Casa','Media','Pendiente','Después','','','Decisión tomada','Revisar fecha M5 Pro','Media'],
+  ['Cargador','Casa','Media','Pendiente','Después','','','Conseguido','','Baja'],
+  ['Bolso Carlos','Casa','Media','Pendiente','Semana','','','Devuelto','','Baja'],
+  ['Bolsas camioneta','Casa','Baja','Pendiente','Después','','','Resuelto','','Baja'],
+  ['Pasar tabla de aluminio','Casa','Baja','Pendiente','Después','','','Hecho','','Baja'],
+  ['Segunda casa — revisar','Casa','Media','Pendiente','Semana','','','Situación aclarada','Buscar info','Media'],
+  ['Revisar ropa — dar destino','Casa','Baja','Pendiente','Después','','1h','Ropa clasificada','Abrir placard','Baja'],
+  ['Revisar juguetes — dar destino','Casa','Baja','Pendiente','Después','','30m','Clasificados','Juntar en un lugar','Baja'],
+  ['Compras supermercado','Casa','Media','Pendiente','Semana','','','Todo comprado','Armar lista final','Baja'],
+  ['Max — plata / depósito','Plata','Alta','Pendiente','Mañana','','','Tema resuelto','Escribir a Max','Baja'],
+  ['Ahorros — armar mecanismo','Plata','Alta','Pendiente','Semana','','2h','Plan escrito','Listar ingresos y egresos','Alta'],
+  ['Reintegros','Plata','Media','Pendiente','Semana','','','Cobrados','Buscar comprobantes','Media'],
+  ['Deuda / impuestos','Plata','Alta','Pendiente','Semana','','','Situación clara','Entrar a AFIP','Media'],
+  ['Patente — revisar','Plata','Media','Pendiente','Semana','','','Resuelta','Buscar vencimiento','Media'],
+  ['AGIP Monotributo — revisar','Plata','Alta','Pendiente','Semana','','','Decisión tomada','Consultar con contador','Alta'],
+  ['Retorno impuestos julio — AGIP','Plata','Media','Pendiente','Semana','','','Trámite iniciado','Entrar a AGIP','Media'],
+  ['Cancelar ID seguro','Plata','Media','Pendiente','Semana','','','Cancelado','Buscar cómo se cancela','Baja'],
+  ['Seguro — gestión','Plata','Media','Pendiente','Semana','','','Resuelto','Llamar a la aseguradora','Media'],
+  ['Low Jack','Plata','Media','Pendiente','Después','','','Resuelto','','Baja'],
+  ['Telecentro','Plata','Media','Pendiente','Semana','','','Resuelto','Llamar o entrar a la web','Baja'],
+  ['Movistar','Plata','Media','Pendiente','Semana','','','Resuelto','Llamar o entrar a la web','Baja'],
+  ['Cancelar Mauro','Plata','Media','Pendiente','Semana','','','Cancelado','Buscar cómo cancelar','Baja'],
+  ['Cancelar Ryan / Serag','Plata','Media','Pendiente','Semana','','','Cancelado','Buscar cómo cancelar','Baja'],
+  ['Cancelar Aine','Plata','Baja','Pendiente','Después','','','Cancelado','Buscar cómo cancelar','Baja'],
+  ['Revisar Mirowib','Plata','Baja','Pendiente','Después','','','Decisión tomada','','Baja'],
+  ['Revisar segundo ID','Plata','Baja','Pendiente','Después','','','Resuelto','','Baja'],
+  ['Banco Facu','Plata','Media','Pendiente','Semana','','','Resuelto','Llamar al banco','Baja'],
+  ['Facu Open Sport','Plata','Baja','Pendiente','Después','','','Resuelto','','Baja'],
+  ['Activar planes B / consultorías','Plata','Media','Pendiente','Después','','','Plan definido','Listar opciones','Alta'],
+  ['Análisis de sangre','Salud','Alta','Pendiente','Semana','','','Hecho','Llamar al laboratorio','Baja'],
+  ['Turno ginecólogo','Salud','Alta','Pendiente','Mañana','','','Turno sacado','Llamar al consultorio','Baja'],
+  ['Turno pelo','Salud','Media','Pendiente','Semana','','','Turno sacado','Llamar','Baja'],
+  ['Pelo Facu','Salud','Baja','Pendiente','Después','','','Resuelto','','Baja'],
+  ['Hablar con Max — Facu','Salud','Media','Pendiente','Semana','','','Conversación hecha','Escribir a Max','Baja'],
+  ['Esquema de gimnasia diaria','Personal','Alta','Pendiente','Semana','','1h','Esquema escrito','Listar ejercicios posibles','Media'],
+  ['Research ejercicios y videos','Personal','Media','Pendiente','Después','','1h','Lista de recursos','Buscar en YouTube','Baja'],
+  ['Librería este finde','Personal','Media','Pendiente','Semana','','','Encargo hecho','Listar qué necesito','Baja'],
+  ['Armar fotos Bumble','Personal','Baja','Pendiente','Después','','','Fotos seleccionadas','Revisar fotos que tengo','Baja'],
+  ['Armar perfil Bumble','Personal','Baja','Pendiente','Después','','','Perfil completo','Abrir app','Baja'],
+  ['Poner a vender libros y ropa','Vender','Media','Pendiente','Semana','','','Publicaciones hechas','Fotografiar items','Baja'],
+  ['SERAgid / AGIPSERAgid','Backlog','Baja','Pendiente','Después','','','Aclarado','Investigar qué es','Baja'],
+  ['Calomes','Backlog','Baja','Pendiente','Después','','','Aclarado','Investigar','Baja'],
+  ['SERAbid','Backlog','Baja','Pendiente','Después','','','Aclarado','Investigar','Baja'],
+  ['Beti','Backlog','Baja','Pendiente','Después','','','Aclarado','','Baja'],
+  ['Monotmib / SORP','Backlog','Baja','Pendiente','Después','','','Aclarado','Investigar','Baja'],
+  ['Rumpas / PH','Backlog','Baja','Pendiente','Después','','','Aclarado','','Baja'],
+  ['Dousatub','Backlog','Baja','Pendiente','Después','','','Aclarado','','Baja'],
+  ['Sandina','Backlog','Baja','Pendiente','Después','','','Aclarado','','Baja'],
+  ['Monitos','Backlog','Baja','Pendiente','Después','','','Aclarado','','Baja'],
+  ['Venta Sí — confirmar','Backlog','Baja','Pendiente','Después','','','Aclarado','','Baja'],
+];
+
+let tasks = [];
+let modalTaskId = null;
+let modalField = null;
+
+function badge(msg, cls) {
+  const el = document.getElementById('sync-badge');
+  el.textContent = msg;
+  el.className = 'sync-badge ' + (cls || '');
+}
+
+async function req(method, path, body) {
+  const opts = { method, headers: { ...H } };
+  if (body !== undefined) opts.body = JSON.stringify(body);
+  const r = await fetch(API + (path || ''), opts);
+  if (!r.ok) { const t = await r.text(); throw new Error(t); }
+  const ct = r.headers.get('content-type') || '';
+  return ct.includes('json') ? r.json() : null;
+}
+
+async function init() {
+  badge('Conectando...', 'loading');
+  try {
+    const data = await req('GET', '?order=id.asc&limit=2000');
+    if (data && data.length > 0) {
+      tasks = data;
+      badge('Sincronizado', 'ok');
+    } else {
+      badge('Cargando datos...', 'loading');
+      const rows = INITIAL.map(r => ({
+        tarea: r[0], area: r[1], pri: r[2], estado: r[3], bloque: r[4],
+        lugar: r[5], tiempo: r[6], done: r[7], paso: r[8], energia: r[9]
+      }));
+      // Insert in batches of 50
+      let inserted = [];
+      for (let i = 0; i < rows.length; i += 50) {
+        const batch = await req('POST', '', rows.slice(i, i + 50));
+        if (batch) inserted = inserted.concat(batch);
+      }
+      tasks = inserted.length > 0 ? inserted : rows;
+      badge('Sincronizado', 'ok');
+    }
+  } catch(e) {
+    badge('Sin conexión — modo local', 'err');
+    try {
+      const d = localStorage.getItem('tasktracker_v2');
+      if (d) tasks = JSON.parse(d);
+      else {
+        tasks = INITIAL.map((r, i) => ({ id: i+1, tarea:r[0],area:r[1],pri:r[2],estado:r[3],bloque:r[4],lugar:r[5],tiempo:r[6],done:r[7],paso:r[8],energia:r[9] }));
+      }
+    } catch(e2) {}
+  }
+  render();
+  handleURLAdd();
+}
+
+async function dbUpdate(id, changes) {
+  try {
+    await req('PATCH', '?id=eq.' + id, changes);
+    badge('Guardado', 'ok');
+  } catch(e) { badge('Error al guardar', 'err'); }
+}
+
+async function dbInsert(row) {
+  try {
+    const res = await req('POST', '', [row]);
+    badge('Guardado', 'ok');
+    return res && res[0] ? res[0] : row;
+  } catch(e) { badge('Error al guardar', 'err'); return row; }
+}
+
+async function dbDelete(id) {
+  try { await req('DELETE', '?id=eq.' + id); badge('Eliminado', 'ok'); }
+  catch(e) { badge('Error', 'err'); }
+}
+
+async function dbDeleteMany(ids) {
+  try { await req('DELETE', '?id=in.(' + ids.join(',') + ')'); badge('Limpios', 'ok'); }
+  catch(e) { badge('Error', 'err'); }
+}
+
+function populateFilters() {
+  const fa = document.getElementById('f-area');
+  const na = document.getElementById('new-area');
+  const cur = fa.value;
+  fa.innerHTML = '<option value="">Todas las áreas</option>';
+  na.innerHTML = '<option value="">Área</option>';
+  AREAS.forEach(a => {
+    fa.innerHTML += `<option${cur === a ? ' selected' : ''}>${a}</option>`;
+    na.innerHTML += `<option>${a}</option>`;
+  });
+}
+
+function sel(field, val, opts, id) {
+  return `<select class="inline" onchange="upd(${id},'${field}',this.value)">${opts.map(o => `<option${o === val ? ' selected' : ''}>${o}</option>`).join('')}</select>`;
+}
+
+function upd(id, field, val) {
+  const t = tasks.find(t => t.id === id);
+  if (t) { t[field] = val; dbUpdate(id, { [field]: val }); renderStats(); }
+}
+
+function openModal(taskId, field, label) {
+  const t = tasks.find(t => t.id === taskId);
+  if (!t) return;
+  modalTaskId = taskId; modalField = field;
+  document.getElementById('modal-label').textContent = label + ' — ' + t.tarea;
+  document.getElementById('modal-ta').value = t[field] || '';
+  document.getElementById('modal-backdrop').classList.add('show');
+  setTimeout(() => document.getElementById('modal-ta').focus(), 50);
+}
+
+function saveModal() {
+  if (modalTaskId && modalField) {
+    const val = document.getElementById('modal-ta').value;
+    upd(modalTaskId, modalField, val);
+    render();
+  }
+  closeModal();
+}
+
+function closeModal() {
+  document.getElementById('modal-backdrop').classList.remove('show');
+  modalTaskId = null; modalField = null;
+}
+
+function handleBackdropClick(e) {
+  if (e.target === document.getElementById('modal-backdrop')) closeModal();
+}
+
+async function delTask(id) {
+  tasks = tasks.filter(t => t.id !== id);
+  render();
+  await dbDelete(id);
+}
+
+async function clearDone() {
+  const ids = tasks.filter(t => t.estado === 'Listo').map(t => t.id);
+  if (!ids.length) return;
+  tasks = tasks.filter(t => t.estado !== 'Listo');
+  render();
+  await dbDeleteMany(ids);
+}
+
+function getFiltered() {
+  const q = document.getElementById('search').value.toLowerCase();
+  const fa = document.getElementById('f-area').value;
+  const fp = document.getElementById('f-pri').value;
+  const fe = document.getElementById('f-estado').value;
+  const fb = document.getElementById('f-bloque').value;
+  const fen = document.getElementById('f-energia').value;
+  return tasks.filter(t => {
+    if (q && !t.tarea.toLowerCase().includes(q)) return false;
+    if (fa && t.area !== fa) return false;
+    if (fp && t.pri !== fp) return false;
+    if (fe && t.estado !== fe) return false;
+    if (fb && t.bloque !== fb) return false;
+    if (fen && t.energia !== fen) return false;
+    return true;
+  });
+}
+
+function renderStats() {
+  const total = tasks.length;
+  const listo = tasks.filter(t => t.estado === 'Listo').length;
+  const alta = tasks.filter(t => t.pri === 'Alta' && t.estado !== 'Listo').length;
+  const hoy = tasks.filter(t => ['Mañana','Tarde','Noche'].includes(t.bloque) && t.estado !== 'Listo').length;
+  document.getElementById('stats').innerHTML = `
+    <div class="stat"><div class="stat-label">Total</div><div class="stat-value">${total}</div></div>
+    <div class="stat"><div class="stat-label">Listos</div><div class="stat-value">${listo}</div></div>
+    <div class="stat"><div class="stat-label">Prioridad alta</div><div class="stat-value">${alta}</div></div>
+    <div class="stat"><div class="stat-label">Para hoy</div><div class="stat-value">${hoy}</div></div>
+  `;
+}
+
+function render() {
+  populateFilters();
+  renderStats();
+  const filtered = getFiltered();
+  const tbody = document.getElementById('tbody');
+  if (!filtered.length) { tbody.innerHTML = `<tr class="empty-row"><td colspan="11">Sin resultados</td></tr>`; return; }
+  const byArea = {};
+  filtered.forEach(t => { if (!byArea[t.area]) byArea[t.area] = []; byArea[t.area].push(t); });
+  let html = '';
+  AREAS.filter(a => byArea[a]).forEach(area => {
+    html += `<tr class="section-header"><td colspan="11">${area} <span style="font-weight:400;opacity:0.55">(${byArea[area].length})</span></td></tr>`;
+    byArea[area].forEach(t => {
+      const dim = t.estado === 'Listo' ? 'opacity:0.4;' : '';
+      const dp = (t.done || '').substring(0, 30) + ((t.done || '').length > 30 ? '…' : '');
+      const pp = (t.paso || '').substring(0, 30) + ((t.paso || '').length > 30 ? '…' : '');
+      html += `<tr style="${dim}">
+        <td class="col-tarea" style="font-size:12px;">${t.tarea}</td>
+        <td class="col-area">${sel('area', t.area, AREAS, t.id)}</td>
+        <td class="col-pri">${sel('pri', t.pri, PRIORIDADES, t.id)}</td>
+        <td class="col-estado">${sel('estado', t.estado, ESTADOS, t.id)}</td>
+        <td class="col-bloque">${sel('bloque', t.bloque, BLOQUES, t.id)}</td>
+        <td style="font-size:11px;color:var(--text2);">${t.lugar || '—'}</td>
+        <td style="font-size:11px;color:var(--text2);">${t.tiempo || '—'}</td>
+        <td class="peek-cell" onclick="openModal(${t.id},'done','Criterio de done')"><span class="peek-text${!t.done ? ' empty' : ''}">${dp || '—'}</span></td>
+        <td class="peek-cell" onclick="openModal(${t.id},'paso','Primer paso')"><span class="peek-text${!t.paso ? ' empty' : ''}">${pp || '—'}</span></td>
+        <td class="col-energia">${sel('energia', t.energia, ENERGIAS, t.id)}</td>
+        <td><button class="del-btn" onclick="delTask(${t.id})">×</button></td>
+      </tr>`;
+    });
+  });
+  tbody.innerHTML = html;
+}
+
+async function addTask() {
+  const tarea = document.getElementById('new-tarea').value.trim();
+  if (!tarea) return;
+  const row = {
+    tarea,
+    area: document.getElementById('new-area').value || 'Backlog',
+    pri: document.getElementById('new-pri').value || 'Media',
+    estado: 'Pendiente',
+    bloque: document.getElementById('new-bloque').value || 'Semana',
+    lugar: document.getElementById('new-lugar').value.trim(),
+    tiempo: document.getElementById('new-tiempo').value.trim(),
+    done: '', paso: '',
+    energia: document.getElementById('new-energia').value || 'Media'
+  };
+  const saved = await dbInsert(row);
+  tasks.push(saved);
+  document.getElementById('new-tarea').value = '';
+  document.getElementById('new-lugar').value = '';
+  document.getElementById('new-tiempo').value = '';
+  render();
+}
+
+function exportCSV() {
+  const headers = ['Tarea','Área','Prioridad','Estado','Bloque','Lugar','Tiempo','Criterio de done','Primer paso','Energía'];
+  const rows = tasks.map(t => [t.tarea,t.area,t.pri,t.estado,t.bloque,t.lugar,t.tiempo,t.done,t.paso,t.energia].map(v => `"${(v||'').replace(/"/g,'""')}"`).join(','));
+  const blob = new Blob([[headers.join(','), ...rows].join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'tareas.csv'; a.click();
+}
+
+async function handleURLAdd() {
+  const params = new URLSearchParams(window.location.search);
+  const addText = params.get('add');
+  if (addText && addText.trim()) {
+    window.history.replaceState({}, document.title, window.location.pathname);
+    const row = { tarea: addText.trim(), area: 'Backlog', pri: 'Media', estado: 'Pendiente', bloque: 'Semana', lugar: '', tiempo: '', done: '', paso: '', energia: 'Media' };
+    const saved = await dbInsert(row);
+    tasks.push(saved);
+    render();
+  }
+}
+
+document.getElementById('search').addEventListener('input', render);
+['f-area','f-pri','f-estado','f-bloque','f-energia'].forEach(id => document.getElementById(id).addEventListener('change', render));
+document.getElementById('new-tarea').addEventListener('keydown', e => { if (e.key === 'Enter') addTask(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+document.getElementById('modal-ta').addEventListener('keydown', e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) saveModal(); });
+
+init();
+</script>
+</body>
+</html>

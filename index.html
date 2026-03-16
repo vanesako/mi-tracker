@@ -45,6 +45,8 @@ td { padding: 6px 8px; border-bottom: 0.5px solid var(--border); color: var(--te
 tbody tr:last-child td { border-bottom: none; }
 tbody tr:hover td { background: var(--bg2); }
 .section-header td { background: var(--bg2); font-weight: 500; font-size: 10px; color: var(--text2); padding: 5px 8px; letter-spacing: 0.08em; text-transform: uppercase; border-bottom: 0.5px solid var(--border); }
+.section-header .area-name { cursor: pointer; border-bottom: 1px dashed var(--text3); }
+.section-header .area-name:hover { color: var(--text); }
 select.inline { font-size: 11px; border: none; background: transparent; color: var(--text2); cursor: pointer; padding: 1px 2px; max-width: 100%; }
 select.inline:focus { outline: none; }
 .del-btn { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 14px; padding: 0 2px; line-height: 1; }
@@ -59,10 +61,10 @@ select.inline:focus { outline: none; }
 .col-estado { width: 9%;  }
 .col-pri    { width: 6%;  }
 .col-dia    { width: 8%;  }
-.col-paso   { width: 13%; }
 .col-tiempo { width: 6%;  }
 .col-tipo   { width: 9%;  }
 .col-donde  { width: 8%;  }
+.col-paso   { width: 13%; }
 .col-area   { width: 11%; }
 .col-done   { width: 9%;  }
 .col-del    { width: 2%;  }
@@ -93,9 +95,10 @@ select.inline:focus { outline: none; }
     <select id="f-pri"><option value="">Prioridad</option><option>Alta</option><option>Media</option><option>Baja</option></select>
     <select id="f-estado"><option value="">Estado</option><option>Por hacer</option><option>En curso</option><option>Pendiente</option><option>Bloqueada</option><option>Finalizada</option></select>
     <select id="f-dia"><option value="">Día</option><option>Hoy</option><option>Mañana</option><option>This week</option><option>Weekend</option><option>Next week</option><option>Sin fecha</option></select>
-    <select id="f-tipo"><option value="">Tipo</option><option>Deep work</option><option>Contacto</option><option>Mandados</option></select>
+    <select id="f-tipo"><option value="">Tipo</option><option>Deep work</option><option>Contacto</option><option>Mandados</option><option>Tarea</option></select>
     <select id="f-donde"><option value="">Dónde</option><option>Campus</option><option>Palermo</option><option>Compu</option><option>Beraza</option><option>Indistinto</option></select>
     <button class="btn" onclick="clearFinalizadas()">Limpiar finalizadas</button>
+    <button class="btn" onclick="openNuevaArea()">+ Nueva área</button>
     <button class="btn btn-primary" onclick="exportCSV()">Exportar CSV</button>
   </div>
   <div class="tbl-wrap">
@@ -106,10 +109,10 @@ select.inline:focus { outline: none; }
           <th class="col-estado">Estado</th>
           <th class="col-pri">Prioridad</th>
           <th class="col-dia">Día</th>
-          <th class="col-paso">Próx. paso ✎</th>
           <th class="col-tiempo">Tiempo</th>
           <th class="col-tipo">Tipo</th>
           <th class="col-donde">Dónde</th>
+          <th class="col-paso">Próx. paso ✎</th>
           <th class="col-area">Área</th>
           <th class="col-done">Done ✎</th>
           <th class="col-del"></th>
@@ -123,7 +126,7 @@ select.inline:focus { outline: none; }
     <select id="new-area" style="min-width:110px;"><option value="">Área</option></select>
     <select id="new-pri"><option value="Media">Prioridad</option><option>Alta</option><option>Media</option><option>Baja</option></select>
     <select id="new-dia"><option value="">Día</option><option>Hoy</option><option>Mañana</option><option>This week</option><option>Weekend</option><option>Next week</option><option>Sin fecha</option></select>
-    <select id="new-tipo"><option value="">Tipo</option><option>Deep work</option><option>Contacto</option><option>Mandados</option></select>
+    <select id="new-tipo"><option value="">Tipo</option><option>Deep work</option><option>Contacto</option><option>Mandados</option><option>Tarea</option></select>
     <select id="new-donde"><option value="">Dónde</option><option>Campus</option><option>Palermo</option><option>Compu</option><option>Beraza</option><option>Indistinto</option></select>
     <input type="text" id="new-tiempo" placeholder="Tiempo" style="width:70px;">
     <button class="btn btn-primary" onclick="addTask()">+ Agregar</button>
@@ -135,6 +138,7 @@ select.inline:focus { outline: none; }
     <button class="modal-close-x" onclick="closeModal()">×</button>
     <div class="modal-label" id="modal-label"></div>
     <textarea id="modal-ta" rows="4" placeholder="Escribí aquí..."></textarea>
+    <select id="modal-sel" style="display:none;width:100%;font-size:13px;padding:8px 10px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg2);color:var(--text);font-family:inherit;"></select>
     <div class="modal-actions">
       <button class="btn" onclick="closeModal()">Cancelar</button>
       <button class="btn btn-primary" onclick="saveModal()">Guardar</button>
@@ -157,7 +161,7 @@ const AREAS = ['IFI — Web','IFI — Lanzamiento','IFI — Ventas','IFI — Con
 const PRIORIDADES = ['Alta','Media','Baja'];
 const ESTADOS = ['Por hacer','En curso','Pendiente','Bloqueada','Finalizada'];
 const DIAS = ['Hoy','Mañana','This week','Weekend','Next week','Sin fecha'];
-const TIPOS = ['Deep work','Contacto','Mandados'];
+const TIPOS = ['Deep work','Contacto','Mandados','Tarea'];
 const DONDES = ['Campus','Palermo','Compu','Beraza','Indistinto'];
 
 const BLOQUE_MAP = { 'Mañana':'Hoy','Tarde':'Mañana','Noche':'This week','Semana':'Weekend','Después':'Next week' };
@@ -287,18 +291,72 @@ function updTiempo(id, val) {
   }
 }
 
+let modalMode = 'field'; // 'field' | 'rename-area' | 'nueva-area'
+let modalAreaOld = null;
+
 function openModal(taskId, field, label) {
   const t = tasks.find(t => t.id === taskId);
   if (!t) return;
+  modalMode = 'field';
   modalTaskId = taskId; modalField = field;
   document.getElementById('modal-label').textContent = label + ' — ' + t.tarea;
-  document.getElementById('modal-ta').value = t[field] || '';
+  const ta = document.getElementById('modal-ta');
+  const ms = document.getElementById('modal-sel');
+  ta.style.display = 'block'; ms.style.display = 'none';
+  ta.value = t[field] || '';
   document.getElementById('modal-backdrop').classList.add('show');
-  setTimeout(() => document.getElementById('modal-ta').focus(), 50);
+  setTimeout(() => ta.focus(), 50);
 }
 
-function saveModal() {
-  if (modalTaskId && modalField) {
+function openRenameArea(area) {
+  modalMode = 'rename-area';
+  modalAreaOld = area;
+  modalTaskId = null; modalField = null;
+  document.getElementById('modal-label').textContent = 'Renombrar área';
+  const ta = document.getElementById('modal-ta');
+  const ms = document.getElementById('modal-sel');
+  ta.style.display = 'block'; ms.style.display = 'none';
+  ta.rows = 1;
+  ta.value = area;
+  document.getElementById('modal-backdrop').classList.add('show');
+  setTimeout(() => { ta.focus(); ta.select(); }, 50);
+}
+
+function openNuevaArea() {
+  modalMode = 'nueva-area';
+  modalTaskId = null; modalField = null;
+  document.getElementById('modal-label').textContent = 'Nueva área';
+  const ta = document.getElementById('modal-ta');
+  const ms = document.getElementById('modal-sel');
+  ta.style.display = 'block'; ms.style.display = 'none';
+  ta.rows = 1;
+  ta.value = '';
+  document.getElementById('modal-backdrop').classList.add('show');
+  setTimeout(() => ta.focus(), 50);
+}
+
+async function saveModal() {
+  if (modalMode === 'rename-area') {
+    const newName = document.getElementById('modal-ta').value.trim();
+    if (newName && newName !== modalAreaOld) {
+      const idx = AREAS.indexOf(modalAreaOld);
+      if (idx !== -1) AREAS[idx] = newName;
+      else AREAS.push(newName);
+      // Actualizar todas las tareas del área
+      const toUpdate = tasks.filter(t => t.area === modalAreaOld);
+      toUpdate.forEach(t => { t.area = newName; });
+      for (const t of toUpdate) {
+        req('PATCH', '?id=eq.' + t.id, { area: newName }).catch(() => {});
+      }
+      render();
+    }
+  } else if (modalMode === 'nueva-area') {
+    const newName = document.getElementById('modal-ta').value.trim();
+    if (newName && !AREAS.includes(newName)) {
+      AREAS.push(newName);
+      render();
+    }
+  } else if (modalTaskId && modalField) {
     const val = document.getElementById('modal-ta').value;
     upd(modalTaskId, modalField, val);
     render();
@@ -308,7 +366,8 @@ function saveModal() {
 
 function closeModal() {
   document.getElementById('modal-backdrop').classList.remove('show');
-  modalTaskId = null; modalField = null;
+  modalTaskId = null; modalField = null; modalAreaOld = null;
+  document.getElementById('modal-ta').rows = 4;
 }
 
 function handleBackdropClick(e) {
@@ -372,7 +431,7 @@ function render() {
   filtered.forEach(t => { if (!byArea[t.area]) byArea[t.area] = []; byArea[t.area].push(t); });
   let html = '';
   AREAS.filter(a => byArea[a]).forEach(area => {
-    html += `<tr class="section-header"><td colspan="11">${area} <span style="font-weight:400;opacity:0.55">(${byArea[area].length})</span></td></tr>`;
+    html += `<tr class="section-header"><td colspan="11"><span class="area-name" onclick="openRenameArea('${area.replace(/'/g, "\\'")}')">${area}</span> <span style="font-weight:400;opacity:0.55">(${byArea[area].length})</span></td></tr>`;
     byArea[area].forEach(t => {
       const dim = t.estado === 'Finalizada' ? 'opacity:0.4;' : '';
       const pp = (t.paso || '').substring(0, 35) + ((t.paso || '').length > 35 ? '…' : '');
@@ -383,10 +442,10 @@ function render() {
         <td class="col-estado">${sel('estado', t.estado, ESTADOS, t.id)}</td>
         <td class="col-pri">${sel('pri', t.pri, PRIORIDADES, t.id)}</td>
         <td class="col-dia">${sel('dia', t.dia||'Sin fecha', DIAS, t.id)}</td>
-        <td class="peek-cell col-paso" onclick="openModal(${t.id},'paso','Próx. paso')"><span class="peek-text${!t.paso ? ' empty' : ''}">${pp || '—'}</span></td>
         <td class="col-tiempo"><input class="editable-input tiempo" type="text" value="${(t.tiempo||'')}" placeholder="—" onblur="updTiempo(${t.id},this.value)" onkeydown="if(event.key==='Enter')this.blur()"></td>
         <td class="col-tipo">${sel('tipo', t.tipo||'Contacto', TIPOS, t.id)}</td>
         <td class="col-donde">${sel('donde', t.donde||'Indistinto', DONDES, t.id)}</td>
+        <td class="peek-cell col-paso" onclick="openModal(${t.id},'paso','Próx. paso')"><span class="peek-text${!t.paso ? ' empty' : ''}">${pp || '—'}</span></td>
         <td class="col-area">${sel('area', t.area, AREAS, t.id)}</td>
         <td class="peek-cell col-done" onclick="openModal(${t.id},'done','Done')"><span class="peek-text${!t.done ? ' empty' : ''}">${dp || '—'}</span></td>
         <td><button class="del-btn" onclick="delTask(${t.id})">×</button></td>

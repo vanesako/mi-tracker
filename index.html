@@ -157,12 +157,38 @@ const H = {
   'Prefer': 'return=representation'
 };
 
-const AREAS = ['IFI — Web','IFI — Lanzamiento','IFI — Ventas','IFI — Contactos','IFI — Proyectos','Carlos','Casa','Plata','Salud','Personal','Vender','Backlog'];
+const AREAS_DEFAULT = ['IFI — Web','IFI — Lanzamiento','IFI — Ventas','IFI — Contactos','IFI — Proyectos','Carlos','Casa','Plata','Salud','Personal','Vender','Backlog'];
+let AREAS = [...AREAS_DEFAULT];
 const PRIORIDADES = ['Alta','Media','Baja'];
 const ESTADOS = ['Por hacer','En curso','Pendiente','Bloqueada','Finalizada'];
 const DIAS = ['Hoy','Mañana','This week','Weekend','Next week','Sin fecha'];
 const TIPOS = ['Deep work','Contacto','Mandados','Tarea'];
 const DONDES = ['Campus','Palermo','Compu','Beraza','Indistinto'];
+
+const API_AREAS = SUPABASE_URL + '/rest/v1/areas';
+const BLOQUE_MAP = { 'Mañana':'Hoy','Tarde':'Mañana','Noche':'This week','Semana':'Weekend','Después':'Next week' };
+
+async function loadAreas() {
+  try {
+    const data = await fetch(API_AREAS + '?order=orden.asc&limit=100', { headers: H }).then(r => r.json());
+    if (data && data.length > 0) AREAS = data.map(a => a.nombre);
+  } catch(e) {}
+}
+
+async function saveNewAreaDB(nombre) {
+  try {
+    const orden = AREAS.length + 1;
+    await fetch(API_AREAS, { method: 'POST', headers: { ...H }, body: JSON.stringify([{ nombre, orden }]) });
+  } catch(e) {}
+}
+
+async function renameAreaDB(oldName, newName) {
+  try {
+    await fetch(API_AREAS + '?nombre=eq.' + encodeURIComponent(oldName), {
+      method: 'PATCH', headers: { ...H }, body: JSON.stringify({ nombre: newName })
+    });
+  } catch(e) {}
+}
 
 const DIA_ORDER = { 'Hoy': 0, 'Mañana': 1, 'This week': 2, 'Weekend': 3, 'Next week': 4, 'Sin fecha': 5 };
 
@@ -208,6 +234,7 @@ async function req(method, path, body) {
 
 async function init() {
   badge('Conectando...', 'loading');
+  await loadAreas();
   try {
     const data = await req('GET', '?order=id.asc&limit=2000');
     if (data && data.length > 0) {
@@ -350,18 +377,19 @@ async function saveModal() {
       const idx = AREAS.indexOf(modalAreaOld);
       if (idx !== -1) AREAS[idx] = newName;
       else AREAS.push(newName);
-      // Actualizar todas las tareas del área
       const toUpdate = tasks.filter(t => t.area === modalAreaOld);
       toUpdate.forEach(t => { t.area = newName; });
       for (const t of toUpdate) {
         req('PATCH', '?id=eq.' + t.id, { area: newName }).catch(() => {});
       }
+      renameAreaDB(modalAreaOld, newName);
       render();
     }
   } else if (modalMode === 'nueva-area') {
     const newName = document.getElementById('modal-ta').value.trim();
     if (newName && !AREAS.includes(newName)) {
       AREAS.push(newName);
+      saveNewAreaDB(newName);
       render();
     }
   } else if (modalTaskId && modalField) {

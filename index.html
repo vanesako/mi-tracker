@@ -106,13 +106,13 @@ select.inline:focus { outline: none; }
       <thead>
         <tr>
           <th class="col-tarea">Tarea</th>
-          <th class="col-estado">Estado</th>
-          <th class="col-pri">Prioridad</th>
           <th class="col-dia">Día</th>
+          <th class="col-estado">Estado</th>
+          <th class="col-paso">Próx. paso ✎</th>
+          <th class="col-pri">Prioridad</th>
           <th class="col-tiempo">Tiempo</th>
           <th class="col-tipo">Tipo</th>
           <th class="col-donde">Dónde</th>
-          <th class="col-paso">Próx. paso ✎</th>
           <th class="col-area">Área</th>
           <th class="col-done">Done ✎</th>
           <th class="col-del"></th>
@@ -164,7 +164,15 @@ const DIAS = ['Hoy','Mañana','This week','Weekend','Next week','Sin fecha'];
 const TIPOS = ['Deep work','Contacto','Mandados','Tarea'];
 const DONDES = ['Campus','Palermo','Compu','Beraza','Indistinto'];
 
-const BLOQUE_MAP = { 'Mañana':'Hoy','Tarde':'Mañana','Noche':'This week','Semana':'Weekend','Después':'Next week' };
+const DIA_ORDER = { 'Hoy': 0, 'Mañana': 1, 'This week': 2, 'Weekend': 3, 'Next week': 4, 'Sin fecha': 5 };
+
+function sortByDia(arr) {
+  return [...arr].sort((a, b) => {
+    const da = DIA_ORDER[a.dia] ?? 5;
+    const db = DIA_ORDER[b.dia] ?? 5;
+    return da - db;
+  });
+}
 const ESTADO_MAP = { 'Pendiente':'Por hacer','En curso':'En curso','Bloqueado':'Bloqueada','Listo':'Finalizada' };
 
 function migrateTask(t) {
@@ -432,20 +440,20 @@ function render() {
   let html = '';
   AREAS.filter(a => byArea[a]).forEach(area => {
     html += `<tr class="section-header"><td colspan="11"><span class="area-name" onclick="openRenameArea('${area.replace(/'/g, "\\'")}')">${area}</span> <span style="font-weight:400;opacity:0.55">(${byArea[area].length})</span></td></tr>`;
-    byArea[area].forEach(t => {
+    sortByDia(byArea[area]).forEach(t => {
       const dim = t.estado === 'Finalizada' ? 'opacity:0.4;' : '';
       const pp = (t.paso || '').substring(0, 35) + ((t.paso || '').length > 35 ? '…' : '');
       const dp = (t.done || '').substring(0, 25) + ((t.done || '').length > 25 ? '…' : '');
       const tareaEsc = (t.tarea || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
       html += `<tr style="${dim}">
         <td class="col-tarea"><input class="editable-input" type="text" value="${tareaEsc}" onblur="updTarea(${t.id},this.value)" onkeydown="if(event.key==='Enter')this.blur()"></td>
-        <td class="col-estado">${sel('estado', t.estado, ESTADOS, t.id)}</td>
-        <td class="col-pri">${sel('pri', t.pri, PRIORIDADES, t.id)}</td>
         <td class="col-dia">${sel('dia', t.dia||'Sin fecha', DIAS, t.id)}</td>
+        <td class="col-estado">${sel('estado', t.estado, ESTADOS, t.id)}</td>
+        <td class="peek-cell col-paso" onclick="openModal(${t.id},'paso','Próx. paso')"><span class="peek-text${!t.paso ? ' empty' : ''}">${pp || '—'}</span></td>
+        <td class="col-pri">${sel('pri', t.pri, PRIORIDADES, t.id)}</td>
         <td class="col-tiempo"><input class="editable-input tiempo" type="text" value="${(t.tiempo||'')}" placeholder="—" onblur="updTiempo(${t.id},this.value)" onkeydown="if(event.key==='Enter')this.blur()"></td>
         <td class="col-tipo">${sel('tipo', t.tipo||'Contacto', TIPOS, t.id)}</td>
         <td class="col-donde">${sel('donde', t.donde||'Indistinto', DONDES, t.id)}</td>
-        <td class="peek-cell col-paso" onclick="openModal(${t.id},'paso','Próx. paso')"><span class="peek-text${!t.paso ? ' empty' : ''}">${pp || '—'}</span></td>
         <td class="col-area">${sel('area', t.area, AREAS, t.id)}</td>
         <td class="peek-cell col-done" onclick="openModal(${t.id},'done','Done')"><span class="peek-text${!t.done ? ' empty' : ''}">${dp || '—'}</span></td>
         <td><button class="del-btn" onclick="delTask(${t.id})">×</button></td>

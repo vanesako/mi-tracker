@@ -27,7 +27,7 @@ h1 { font-size: 18px; font-weight: 500; }
 .sync-badge.ok { color: #3B6D11; border-color: #b0d48a; background: #EAF3DE; }
 .sync-badge.err { color: #A32D2D; border-color: #f09595; background: #FCEBEB; }
 .sync-badge.loading { color: var(--text2); }
-.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 1rem; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 1rem; }
 .stat { background: var(--bg); border-radius: var(--radius); padding: 10px 12px; border: 0.5px solid var(--border); }
 .stat-label { font-size: 11px; color: var(--text2); margin-bottom: 3px; }
 .stat-value { font-size: 20px; font-weight: 500; }
@@ -57,16 +57,16 @@ select.inline:focus { outline: none; }
 .editable-input { font-size: 12px; border: none; background: transparent; color: var(--text); width: 100%; font-family: inherit; padding: 0; }
 .editable-input:focus { outline: none; border-bottom: 1px solid var(--border2); }
 .editable-input.tiempo { font-size: 11px; color: var(--text2); }
-.col-tarea  { width: 19%; }
-.col-estado { width: 9%;  }
-.col-pri    { width: 6%;  }
+.col-tarea  { width: 18%; }
 .col-dia    { width: 8%;  }
-.col-tiempo { width: 6%;  }
+.col-estado { width: 9%;  }
 .col-tipo   { width: 9%;  }
+.col-area   { width: 10%; }
+.col-pri    { width: 6%;  }
 .col-donde  { width: 8%;  }
+.col-tiempo { width: 6%;  }
 .col-paso   { width: 13%; }
-.col-area   { width: 11%; }
-.col-done   { width: 9%;  }
+.col-done   { width: 11%; }
 .col-del    { width: 2%;  }
 .add-bar { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .add-bar input, .add-bar select { font-size: 12px; padding: 5px 8px; border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--bg); color: var(--text); height: 30px; }
@@ -108,13 +108,13 @@ select.inline:focus { outline: none; }
           <th class="col-tarea">Tarea</th>
           <th class="col-dia">Día</th>
           <th class="col-estado">Estado</th>
-          <th class="col-paso">Próx. paso ✎</th>
-          <th class="col-pri">Prioridad</th>
-          <th class="col-tiempo">Tiempo</th>
           <th class="col-tipo">Tipo</th>
-          <th class="col-donde">Dónde</th>
           <th class="col-area">Área</th>
-          <th class="col-done">Done ✎</th>
+          <th class="col-pri">Prioridad</th>
+          <th class="col-donde">Dónde</th>
+          <th class="col-tiempo">Tiempo</th>
+          <th class="col-paso">Próx. paso</th>
+          <th class="col-done">Done</th>
           <th class="col-del"></th>
         </tr>
       </thead>
@@ -310,6 +310,14 @@ function upd(id, field, val) {
   if (t) { t[field] = val; dbUpdate(id, { [field]: val }); renderStats(); }
 }
 
+function updField(id, field, val) {
+  const t = tasks.find(t => t.id === id);
+  if (t && val !== t[field]) {
+    t[field] = val;
+    dbUpdate(id, { [field]: val });
+  }
+}
+
 function updTarea(id, val) {
   const t = tasks.find(t => t.id === id);
   if (t && val.trim() && val.trim() !== t.tarea) {
@@ -451,7 +459,6 @@ function renderStats() {
   const hoy = tasks.filter(t => t.dia === 'Hoy' && t.estado !== 'Finalizada').length;
   document.getElementById('stats').innerHTML = `
     <div class="stat"><div class="stat-label">Total</div><div class="stat-value">${total}</div></div>
-    <div class="stat"><div class="stat-label">Finalizadas</div><div class="stat-value">${fin}</div></div>
     <div class="stat"><div class="stat-label">Prioridad alta</div><div class="stat-value">${alta}</div></div>
     <div class="stat"><div class="stat-label">Para hoy</div><div class="stat-value">${hoy}</div></div>
   `;
@@ -477,13 +484,13 @@ function render() {
         <td class="col-tarea"><input class="editable-input" type="text" value="${tareaEsc}" onblur="updTarea(${t.id},this.value)" onkeydown="if(event.key==='Enter')this.blur()"></td>
         <td class="col-dia">${sel('dia', t.dia||'Sin fecha', DIAS, t.id)}</td>
         <td class="col-estado">${sel('estado', t.estado, ESTADOS, t.id)}</td>
-        <td class="peek-cell col-paso" onclick="openModal(${t.id},'paso','Próx. paso')"><span class="peek-text${!t.paso ? ' empty' : ''}">${pp || '—'}</span></td>
-        <td class="col-pri">${sel('pri', t.pri, PRIORIDADES, t.id)}</td>
-        <td class="col-tiempo"><input class="editable-input tiempo" type="text" value="${(t.tiempo||'')}" placeholder="—" onblur="updTiempo(${t.id},this.value)" onkeydown="if(event.key==='Enter')this.blur()"></td>
         <td class="col-tipo">${sel('tipo', t.tipo||'Contacto', TIPOS, t.id)}</td>
-        <td class="col-donde">${sel('donde', t.donde||'Indistinto', DONDES, t.id)}</td>
         <td class="col-area">${sel('area', t.area, AREAS, t.id)}</td>
-        <td class="peek-cell col-done" onclick="openModal(${t.id},'done','Done')"><span class="peek-text${!t.done ? ' empty' : ''}">${dp || '—'}</span></td>
+        <td class="col-pri">${sel('pri', t.pri, PRIORIDADES, t.id)}</td>
+        <td class="col-donde">${sel('donde', t.donde||'Indistinto', DONDES, t.id)}</td>
+        <td class="col-tiempo"><input class="editable-input tiempo" type="text" value="${(t.tiempo||'')}" placeholder="—" onblur="updTiempo(${t.id},this.value)" onkeydown="if(event.key==='Enter')this.blur()"></td>
+        <td class="col-paso"><input class="editable-input tiempo" type="text" value="${(t.paso||'').replace(/"/g,'&quot;')}" placeholder="—" onblur="updField(${t.id},'paso',this.value)" onkeydown="if(event.key==='Enter')this.blur()"></td>
+        <td class="col-done"><input class="editable-input tiempo" type="text" value="${(t.done||'').replace(/"/g,'&quot;')}" placeholder="—" onblur="updField(${t.id},'done',this.value)" onkeydown="if(event.key==='Enter')this.blur()"></td>
         <td><button class="del-btn" onclick="delTask(${t.id})">×</button></td>
       </tr>`;
     });

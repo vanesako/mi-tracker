@@ -47,6 +47,9 @@ tbody tr:hover td { background: var(--bg2); }
 .section-header td { background: var(--bg2); font-weight: 500; font-size: 10px; color: var(--text2); padding: 5px 8px; letter-spacing: 0.08em; text-transform: uppercase; border-bottom: 0.5px solid var(--border); }
 .section-header .area-name { cursor: pointer; border-bottom: 1px dashed var(--text3); }
 .section-header .area-name:hover { color: var(--text); }
+.section-header .drag-handle { cursor: grab; opacity: 0.4; margin-right: 6px; font-size: 12px; user-select: none; }
+.section-header .drag-handle:hover { opacity: 0.8; }
+.section-header.drag-over td { background: var(--bg3); outline: 1.5px dashed var(--border2); }
 select.inline { font-size: 11px; border: none; background: transparent; color: var(--text2); cursor: pointer; padding: 1px 2px; max-width: 100%; }
 select.inline:focus { outline: none; }
 .del-btn { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 14px; padding: 0 2px; line-height: 1; }
@@ -233,6 +236,42 @@ async function req(method, path, body) {
   if (!r.ok) { const t = await r.text(); throw new Error(t); }
   const ct = r.headers.get('content-type') || '';
   return ct.includes('json') ? r.json() : null;
+}
+
+let dragSrc = null;
+
+function dragStart(e, area) {
+  dragSrc = area;
+  e.dataTransfer.effectAllowed = 'move';
+}
+
+function dragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  e.currentTarget.classList.add('drag-over');
+}
+
+function dragLeave(e) {
+  e.currentTarget.classList.remove('drag-over');
+}
+
+async function dragDrop(e, targetArea) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  if (!dragSrc || dragSrc === targetArea) return;
+  const fromIdx = AREAS.indexOf(dragSrc);
+  const toIdx = AREAS.indexOf(targetArea);
+  if (fromIdx === -1 || toIdx === -1) return;
+  AREAS.splice(fromIdx, 1);
+  AREAS.splice(toIdx, 0, dragSrc);
+  render();
+  // Guardar nuevo orden en Supabase
+  for (let i = 0; i < AREAS.length; i++) {
+    fetch(API_AREAS + '?nombre=eq.' + encodeURIComponent(AREAS[i]), {
+      method: 'PATCH', headers: { ...H }, body: JSON.stringify({ orden: i + 1 })
+    }).catch(() => {});
+  }
+  dragSrc = null;
 }
 
 async function init() {
@@ -477,7 +516,7 @@ function render() {
   filtered.forEach(t => { if (!byArea[t.area]) byArea[t.area] = []; byArea[t.area].push(t); });
   let html = '';
   AREAS.filter(a => byArea[a]).forEach(area => {
-    html += `<tr class="section-header"><td colspan="11"><span class="area-name" onclick="openRenameArea('${area.replace(/'/g, "\\'")}')">${area}</span> <span style="font-weight:400;opacity:0.55">(${byArea[area].length})</span></td></tr>`;
+    html += `<tr class="section-header" draggable="true" ondragstart="dragStart(event,'${area.replace(/'/g,"\\'")}')" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dragDrop(event,'${area.replace(/'/g,"\\'")}')"><td colspan="11"><span class="drag-handle">⠿</span><span class="area-name" onclick="openRenameArea('${area.replace(/'/g, "\\'")}')">${area}</span> <span style="font-weight:400;opacity:0.55">(${byArea[area].length})</span></td></tr>`;
     sortByDia(byArea[area]).forEach(t => {
       const dim = t.estado === 'Finalizada' ? 'opacity:0.4;' : '';
       const pp = (t.paso || '').substring(0, 35) + ((t.paso || '').length > 35 ? '…' : '');

@@ -93,8 +93,8 @@ select.inline:focus { outline: none; }
     <input type="text" id="search" placeholder="Buscar tarea...">
     <select id="f-area"><option value="">Todas las áreas</option></select>
     <select id="f-pri"><option value="">Prioridad</option><option>Alta</option><option>Media</option><option>Baja</option></select>
-    <select id="f-estado"><option value="">Estado</option><option>Por hacer</option><option>En curso</option><option>Pendiente</option><option>Bloqueada</option><option>Finalizada</option></select>
-    <select id="f-dia"><option value="">Día</option><option>Hoy</option><option>Mañana</option><option>This week</option><option>Weekend</option><option>Next week</option><option>Sin fecha</option></select>
+    <select id="f-estado"><option value="">Estado</option><option>Por hacer</option><option>En curso</option><option>Pendiente</option><option>Follow up</option><option>Finalizada</option></select>
+    <select id="f-dia"><option value="">Día</option><option>Hoy</option><option>1 día</option><option>2 días</option><option>3 días</option><option>Weekend</option><option>Next week</option><option>Next month</option><option>Sin fecha</option></select>
     <select id="f-tipo"><option value="">Tipo</option><option>Deep work</option><option>Contacto</option><option>Mandados</option><option>Tarea</option></select>
     <select id="f-donde"><option value="">Dónde</option><option>Campus</option><option>Palermo</option><option>Compu</option><option>Beraza</option><option>Indistinto</option></select>
     <button class="btn" onclick="clearFinalizadas()">Limpiar finalizadas</button>
@@ -125,7 +125,7 @@ select.inline:focus { outline: none; }
     <input type="text" id="new-tarea" placeholder="Nueva tarea..." style="flex:2;min-width:150px;">
     <select id="new-area" style="min-width:110px;"><option value="">Área</option></select>
     <select id="new-pri"><option value="Media">Prioridad</option><option>Alta</option><option>Media</option><option>Baja</option></select>
-    <select id="new-dia"><option value="">Día</option><option>Hoy</option><option>Mañana</option><option>This week</option><option>Weekend</option><option>Next week</option><option>Sin fecha</option></select>
+    <select id="new-dia"><option value="">Día</option><option>Hoy</option><option>1 día</option><option>2 días</option><option>3 días</option><option>Weekend</option><option>Next week</option><option>Next month</option><option>Sin fecha</option></select>
     <select id="new-tipo"><option value="">Tipo</option><option>Deep work</option><option>Contacto</option><option>Mandados</option><option>Tarea</option></select>
     <select id="new-donde"><option value="">Dónde</option><option>Campus</option><option>Palermo</option><option>Compu</option><option>Beraza</option><option>Indistinto</option></select>
     <input type="text" id="new-tiempo" placeholder="Tiempo" style="width:70px;">
@@ -160,13 +160,13 @@ const H = {
 const AREAS_DEFAULT = ['IFI — Web','IFI — Lanzamiento','IFI — Ventas','IFI — Contactos','IFI — Proyectos','Carlos','Casa','Plata','Salud','Personal','Vender','Backlog'];
 let AREAS = [...AREAS_DEFAULT];
 const PRIORIDADES = ['Alta','Media','Baja'];
-const ESTADOS = ['Por hacer','En curso','Pendiente','Bloqueada','Finalizada'];
-const DIAS = ['Hoy','Mañana','This week','Weekend','Next week','Sin fecha'];
+const ESTADOS = ['Por hacer','En curso','Pendiente','Follow up','Finalizada'];
+const DIAS = ['Hoy','1 día','2 días','3 días','Weekend','Next week','Next month','Sin fecha'];
 const TIPOS = ['Deep work','Contacto','Mandados','Tarea'];
 const DONDES = ['Campus','Palermo','Compu','Beraza','Indistinto'];
 
 const API_AREAS = SUPABASE_URL + '/rest/v1/areas';
-const BLOQUE_MAP = { 'Mañana':'Hoy','Tarde':'Mañana','Noche':'This week','Semana':'Weekend','Después':'Next week' };
+const BLOQUE_MAP = { 'Mañana':'1 día','Tarde':'2 días','Noche':'3 días','Semana':'Weekend','Después':'Next week' };
 
 async function loadAreas() {
   try {
@@ -190,7 +190,7 @@ async function renameAreaDB(oldName, newName) {
   } catch(e) {}
 }
 
-const DIA_ORDER = { 'Hoy': 0, 'Mañana': 1, 'This week': 2, 'Weekend': 3, 'Next week': 4, 'Sin fecha': 5 };
+const DIA_ORDER = { 'Hoy': 0, '1 día': 1, '2 días': 2, '3 días': 3, 'Weekend': 4, 'Next week': 5, 'Next month': 6, 'Sin fecha': 7 };
 
 function sortByDia(arr) {
   return [...arr].sort((a, b) => {
@@ -203,7 +203,10 @@ const ESTADO_MAP = { 'Pendiente':'Por hacer','En curso':'En curso','Bloqueado':'
 
 function migrateTask(t) {
   if (!t.dia) t.dia = BLOQUE_MAP[t.bloque] || 'Sin fecha';
+  if (t.dia === 'Mañana') t.dia = '1 día';
+  if (t.dia === 'This week') t.dia = 'Next week';
   if (ESTADO_MAP[t.estado]) t.estado = ESTADO_MAP[t.estado];
+  if (t.estado === 'Bloqueada') t.estado = 'Follow up';
   if (!ESTADOS.includes(t.estado)) t.estado = 'Por hacer';
   if (!t.tipo) {
     const em = { 'Alta':'Deep work','Media':'Contacto','Baja':'Mandados' };

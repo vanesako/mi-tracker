@@ -543,7 +543,7 @@ async function addTask() {
     tiempo: document.getElementById('new-tiempo').value.trim(),
     done: '', paso: '',
     tipo: document.getElementById('new-tipo').value || 'Contacto',
-    donde: document.getElementById('new-donde').value || 'Indistinto'
+    donde: 'Indistinto'
   };
   const saved = await dbInsert(row);
   tasks.push(saved);

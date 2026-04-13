@@ -50,6 +50,9 @@ tbody tr:hover td { background: var(--bg2); }
 .section-header .drag-handle { cursor: grab; opacity: 0.4; margin-right: 6px; font-size: 12px; user-select: none; }
 .section-header .drag-handle:hover { opacity: 0.8; }
 .section-header.drag-over td { background: var(--bg3); outline: 1.5px dashed var(--border2); }
+.del-area-btn { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 13px; padding: 0 2px; margin-left: 8px; line-height: 1; opacity: 0; transition: opacity 0.15s; }
+.section-header:hover .del-area-btn { opacity: 1; }
+.del-area-btn:hover { color: #E24B4A; }
 select.inline { font-size: 11px; border: none; background: transparent; color: var(--text2); cursor: pointer; padding: 1px 2px; max-width: 100%; }
 select.inline:focus { outline: none; }
 .del-btn { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 14px; padding: 0 2px; line-height: 1; }
@@ -248,6 +251,25 @@ function dragOver(e) {
 
 function dragLeave(e) {
   e.currentTarget.classList.remove('drag-over');
+}
+
+async function deleteArea(area) {
+  const count = tasks.filter(t => t.area === area).length;
+  const msg = count > 0
+    ? `"${area}" tiene ${count} tarea${count > 1 ? 's' : ''}. Se moverán a Backlog. ¿Confirmás?`
+    : `¿Eliminás el área "${area}"?`;
+  if (!confirm(msg)) return;
+  // Mover tareas a Backlog
+  if (count > 0) {
+    tasks.filter(t => t.area === area).forEach(t => { t.area = 'Backlog'; });
+    await req('PATCH', '?area=eq.' + encodeURIComponent(area), { area: 'Backlog' }).catch(() => {});
+  }
+  // Eliminar de AREAS
+  const idx = AREAS.indexOf(area);
+  if (idx !== -1) AREAS.splice(idx, 1);
+  // Eliminar de DB
+  fetch(API_AREAS + '?nombre=eq.' + encodeURIComponent(area), { method: 'DELETE', headers: { ...H } }).catch(() => {});
+  render();
 }
 
 async function dragDrop(e, targetArea) {
@@ -509,7 +531,7 @@ function render() {
   filtered.forEach(t => { if (!byArea[t.area]) byArea[t.area] = []; byArea[t.area].push(t); });
   let html = '';
   AREAS.filter(a => byArea[a]).forEach(area => {
-    html += `<tr class="section-header" draggable="true" ondragstart="dragStart(event,'${area.replace(/'/g,"\\'")}')" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dragDrop(event,'${area.replace(/'/g,"\\'")}')"><td colspan="8"><span class="drag-handle">⠿</span><span class="area-name" onclick="openRenameArea('${area.replace(/'/g, "\\'")}')">${area}</span> <span style="font-weight:400;opacity:0.55">(${byArea[area].length})</span></td></tr>`;
+    html += `<tr class="section-header" draggable="true" ondragstart="dragStart(event,'${area.replace(/'/g,"\\'")}')" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dragDrop(event,'${area.replace(/'/g,"\\'")}')"><td colspan="8"><span class="drag-handle">⠿</span><span class="area-name" onclick="openRenameArea('${area.replace(/'/g, "\\'")}')">${area}</span> <span style="font-weight:400;opacity:0.55">(${byArea[area].length})</span><button class="del-area-btn" onclick="deleteArea('${area.replace(/'/g, "\\'")}')">×</button></td></tr>`;
     sortByDia(byArea[area]).forEach(t => {
       const dim = t.estado === 'Finalizada' ? 'opacity:0.4;' : '';
       const pp = (t.paso || '').substring(0, 35) + ((t.paso || '').length > 35 ? '…' : '');

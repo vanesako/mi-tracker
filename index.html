@@ -163,7 +163,7 @@ const TIPOS = ['Deep work','Contacto','Mandados','Tarea'];
 const DONDES = ['Campus','Palermo','Compu','Beraza','Indistinto'];
 
 const API_AREAS = SUPABASE_URL + '/rest/v1/areas';
-const BLOQUE_MAP = { 'Mañana':'Lunes','Tarde':'Martes','Noche':'Miércoles','Semana':'Weekend','Después':'Next week' };
+const BLOQUE_MAP = { 'Mañana':'Lunes','Tarde':'Martes','Noche':'Miércoles','Semana':'Weekend','Después':'This week' };
 
 async function loadAreas() {
   try {
@@ -204,7 +204,7 @@ function migrateTask(t) {
   if (t.dia === '2 días') t.dia = 'Lunes';
   if (t.dia === '3 días') t.dia = 'Martes';
   if (t.dia === 'Mañana') t.dia = 'Lunes';
-  if (t.dia === 'This week') t.dia = 'Next week';
+  if (t.dia === 'Next week') t.dia = 'This week';
   if (ESTADO_MAP[t.estado]) t.estado = ESTADO_MAP[t.estado];
   if (t.estado === 'Bloqueada') t.estado = 'Follow up';
   if (!ESTADOS.includes(t.estado)) t.estado = 'Por hacer';

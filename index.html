@@ -60,16 +60,13 @@ select.inline:focus { outline: none; }
 .editable-input { font-size: 12px; border: none; background: transparent; color: var(--text); width: 100%; font-family: inherit; padding: 0; }
 .editable-input:focus { outline: none; border-bottom: 1px solid var(--border2); }
 .editable-input.tiempo { font-size: 11px; color: var(--text2); }
-.col-tarea  { width: 18%; }
-.col-dia    { width: 8%;  }
-.col-estado { width: 9%;  }
-.col-tipo   { width: 9%;  }
-.col-area   { width: 10%; }
-.col-pri    { width: 6%;  }
-.col-donde  { width: 8%;  }
-.col-tiempo { width: 6%;  }
-.col-paso   { width: 13%; }
-.col-done   { width: 11%; }
+.col-tarea  { width: 22%; }
+.col-dia    { width: 9%;  }
+.col-estado { width: 10%; }
+.col-tipo   { width: 10%; }
+.col-area   { width: 12%; }
+.col-pri    { width: 7%;  }
+.col-tiempo { width: 7%;  }
 .col-del    { width: 2%;  }
 .add-bar { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .add-bar input, .add-bar select { font-size: 12px; padding: 5px 8px; border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--bg); color: var(--text); height: 30px; }
@@ -97,9 +94,8 @@ select.inline:focus { outline: none; }
     <select id="f-area"><option value="">Todas las áreas</option></select>
     <select id="f-pri"><option value="">Prioridad</option><option>Alta</option><option>Media</option><option>Baja</option></select>
     <select id="f-estado"><option value="">Estado</option><option>Por hacer</option><option>En curso</option><option>Pendiente</option><option>Follow up</option><option>Finalizada</option></select>
-    <select id="f-dia"><option value="">Día</option><option>Lunes</option><option>Martes</option><option>Miércoles</option><option>Jueves</option><option>Viernes</option><option>Weekend</option><option>Next week</option><option>Next month</option><option>Sin fecha</option></select>
+    <select id="f-dia"><option value="">Día</option><option>To do</option><option>Lunes</option><option>Martes</option><option>Miércoles</option><option>Jueves</option><option>Viernes</option><option>Weekend</option><option>Next week</option><option>Sin fecha</option></select>
     <select id="f-tipo"><option value="">Tipo</option><option>Deep work</option><option>Contacto</option><option>Mandados</option><option>Tarea</option></select>
-    <select id="f-donde"><option value="">Dónde</option><option>Campus</option><option>Palermo</option><option>Compu</option><option>Beraza</option><option>Indistinto</option></select>
     <button class="btn" onclick="clearFinalizadas()">Limpiar finalizadas</button>
     <button class="btn" onclick="openNuevaArea()">+ Nueva área</button>
     <button class="btn btn-primary" onclick="exportCSV()">Exportar CSV</button>
@@ -114,10 +110,7 @@ select.inline:focus { outline: none; }
           <th class="col-tipo">Tipo</th>
           <th class="col-area">Área</th>
           <th class="col-pri">Prioridad</th>
-          <th class="col-donde">Dónde</th>
           <th class="col-tiempo">Tiempo</th>
-          <th class="col-paso">Próx. paso</th>
-          <th class="col-done">Done</th>
           <th class="col-del"></th>
         </tr>
       </thead>
@@ -128,9 +121,8 @@ select.inline:focus { outline: none; }
     <input type="text" id="new-tarea" placeholder="Nueva tarea..." style="flex:2;min-width:150px;">
     <select id="new-area" style="min-width:110px;"><option value="">Área</option></select>
     <select id="new-pri"><option value="Media">Prioridad</option><option>Alta</option><option>Media</option><option>Baja</option></select>
-    <select id="new-dia"><option value="">Día</option><option>Lunes</option><option>Martes</option><option>Miércoles</option><option>Jueves</option><option>Viernes</option><option>Weekend</option><option>Next week</option><option>Next month</option><option>Sin fecha</option></select>
+    <select id="new-dia"><option value="">Día</option><option>To do</option><option>Lunes</option><option>Martes</option><option>Miércoles</option><option>Jueves</option><option>Viernes</option><option>Weekend</option><option>Next week</option><option>Sin fecha</option></select>
     <select id="new-tipo"><option value="">Tipo</option><option>Deep work</option><option>Contacto</option><option>Mandados</option><option>Tarea</option></select>
-    <select id="new-donde"><option value="">Dónde</option><option>Campus</option><option>Palermo</option><option>Compu</option><option>Beraza</option><option>Indistinto</option></select>
     <input type="text" id="new-tiempo" placeholder="Tiempo" style="width:70px;">
     <button class="btn btn-primary" onclick="addTask()">+ Agregar</button>
   </div>
@@ -164,7 +156,7 @@ const AREAS_DEFAULT = ['IFI — MKT','IFI — Ventas','IFI — Partnerships','IF
 let AREAS = [...AREAS_DEFAULT];
 const PRIORIDADES = ['Alta','Media','Baja'];
 const ESTADOS = ['Por hacer','En curso','Pendiente','Follow up','Finalizada'];
-const DIAS = ['Lunes','Martes','Miércoles','Jueves','Viernes','Weekend','Next week','Next month','Sin fecha'];
+const DIAS = ['To do','Lunes','Martes','Miércoles','Jueves','Viernes','Weekend','Next week','Sin fecha'];
 const TIPOS = ['Deep work','Contacto','Mandados','Tarea'];
 const DONDES = ['Campus','Palermo','Compu','Beraza','Indistinto'];
 
@@ -193,7 +185,7 @@ async function renameAreaDB(oldName, newName) {
   } catch(e) {}
 }
 
-const DIA_ORDER = { 'Lunes': 0, 'Martes': 1, 'Miércoles': 2, 'Jueves': 3, 'Viernes': 4, 'Weekend': 5, 'Next week': 6, 'Next month': 7, 'Sin fecha': 8 };
+const DIA_ORDER = { 'To do': 0, 'Lunes': 1, 'Martes': 2, 'Miércoles': 3, 'Jueves': 4, 'Viernes': 5, 'Weekend': 6, 'Next week': 7, 'Sin fecha': 8 };
 
 function sortByDia(arr) {
   return [...arr].sort((a, b) => {
@@ -484,7 +476,6 @@ function getFiltered() {
   const fe = document.getElementById('f-estado').value;
   const fd = document.getElementById('f-dia').value;
   const ft = document.getElementById('f-tipo').value;
-  const fw = document.getElementById('f-donde').value;
   return tasks.filter(t => {
     if (q && !t.tarea.toLowerCase().includes(q)) return false;
     if (fa && t.area !== fa) return false;
@@ -492,7 +483,6 @@ function getFiltered() {
     if (fe && t.estado !== fe) return false;
     if (fd && t.dia !== fd) return false;
     if (ft && t.tipo !== ft) return false;
-    if (fw && t.donde !== fw) return false;
     return true;
   });
 }
@@ -514,12 +504,12 @@ function render() {
   renderStats();
   const filtered = getFiltered();
   const tbody = document.getElementById('tbody');
-  if (!filtered.length) { tbody.innerHTML = `<tr class="empty-row"><td colspan="11">Sin resultados</td></tr>`; return; }
+  if (!filtered.length) { tbody.innerHTML = `<tr class="empty-row"><td colspan="8">Sin resultados</td></tr>`; return; }
   const byArea = {};
   filtered.forEach(t => { if (!byArea[t.area]) byArea[t.area] = []; byArea[t.area].push(t); });
   let html = '';
   AREAS.filter(a => byArea[a]).forEach(area => {
-    html += `<tr class="section-header" draggable="true" ondragstart="dragStart(event,'${area.replace(/'/g,"\\'")}')" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dragDrop(event,'${area.replace(/'/g,"\\'")}')"><td colspan="11"><span class="drag-handle">⠿</span><span class="area-name" onclick="openRenameArea('${area.replace(/'/g, "\\'")}')">${area}</span> <span style="font-weight:400;opacity:0.55">(${byArea[area].length})</span></td></tr>`;
+    html += `<tr class="section-header" draggable="true" ondragstart="dragStart(event,'${area.replace(/'/g,"\\'")}')" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dragDrop(event,'${area.replace(/'/g,"\\'")}')"><td colspan="8"><span class="drag-handle">⠿</span><span class="area-name" onclick="openRenameArea('${area.replace(/'/g, "\\'")}')">${area}</span> <span style="font-weight:400;opacity:0.55">(${byArea[area].length})</span></td></tr>`;
     sortByDia(byArea[area]).forEach(t => {
       const dim = t.estado === 'Finalizada' ? 'opacity:0.4;' : '';
       const pp = (t.paso || '').substring(0, 35) + ((t.paso || '').length > 35 ? '…' : '');
@@ -532,10 +522,7 @@ function render() {
         <td class="col-tipo">${sel('tipo', t.tipo||'Contacto', TIPOS, t.id)}</td>
         <td class="col-area">${sel('area', t.area, AREAS, t.id)}</td>
         <td class="col-pri">${sel('pri', t.pri, PRIORIDADES, t.id)}</td>
-        <td class="col-donde">${sel('donde', t.donde||'Indistinto', DONDES, t.id)}</td>
         <td class="col-tiempo"><input class="editable-input tiempo" type="text" value="${(t.tiempo||'')}" placeholder="—" onblur="updTiempo(${t.id},this.value)" onkeydown="if(event.key==='Enter')this.blur()"></td>
-        <td class="col-paso"><input class="editable-input tiempo" type="text" value="${(t.paso||'').replace(/"/g,'&quot;')}" placeholder="—" onblur="updField(${t.id},'paso',this.value)" onkeydown="if(event.key==='Enter')this.blur()"></td>
-        <td class="col-done"><input class="editable-input tiempo" type="text" value="${(t.done||'').replace(/"/g,'&quot;')}" placeholder="—" onblur="updField(${t.id},'done',this.value)" onkeydown="if(event.key==='Enter')this.blur()"></td>
         <td><button class="del-btn" onclick="delTask(${t.id})">×</button></td>
       </tr>`;
     });
@@ -585,7 +572,7 @@ async function handleURLAdd() {
 }
 
 document.getElementById('search').addEventListener('input', render);
-['f-area','f-pri','f-estado','f-dia','f-tipo','f-donde'].forEach(id => document.getElementById(id).addEventListener('change', render));
+['f-area','f-pri','f-estado','f-dia','f-tipo'].forEach(id => document.getElementById(id).addEventListener('change', render));
 document.getElementById('new-tarea').addEventListener('keydown', e => { if (e.key === 'Enter') addTask(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 document.getElementById('modal-ta').addEventListener('keydown', e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) saveModal(); });
